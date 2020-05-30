@@ -51,7 +51,7 @@ int main(int argc, char* argv[])
 {
     size_t rows = 5, cols = 5;
     double delta_t = 0.005, delta_x = 0.1, delta_y = 0.1,
-           temp_conduct = 74, density = 2'700, temp_capacity = 0.46;
+           temp_conduct = 400, density = 8'900, temp_capacity = 1;
     double delta_x_sq = delta_x * delta_x,
            delta_y_sq = delta_y * delta_y,
            phys_params = temp_conduct / (density * temp_capacity);
@@ -70,26 +70,6 @@ int main(int argc, char* argv[])
         }
     }
     input_stream.close();
-
-//    plate_matrix(0, 0) = 100;
-//    plate_matrix(0, 1) = 100;
-//    plate_matrix(0, 2) = 100;
-//    plate_matrix(0, 3) = 100;
-//    plate_matrix(0, 4) = 100;
-//    plate_matrix(0, 5) = 100;
-//    plate_matrix(4, 0) = 100;
-//    plate_matrix(4, 1) = 100;
-//    plate_matrix(4, 2) = 100;
-//    plate_matrix(4, 3) = 100;
-//    plate_matrix(4, 4) = 100;
-//    plate_matrix(1, 0) = 100;
-//    plate_matrix(2, 0) = 100;
-//    plate_matrix(3, 0) = 100;
-//    plate_matrix(1, 4) = 100;
-//    plate_matrix(2, 4) = 100;
-//    plate_matrix(3, 4) = 100;
-
-    plate_matrix.print();
     if (!von_neumann_criterion(delta_x, delta_y, delta_t, temp_conduct, density, temp_capacity))
     {
         std::cout << "bad initial conditions" << std::endl;
@@ -97,7 +77,7 @@ int main(int argc, char* argv[])
     }
 
     std::string output_path = "./output/time_", cur_path;
-    for (int i = 0; i < 1000; i++)
+    for (int i = 0; i < 2000; i++)
     {
         Magick::InitializeMagick("");
         Magick::Image out_img(Magick::Geometry(cols, rows), "white");
@@ -122,45 +102,6 @@ int main(int argc, char* argv[])
 
         plate_matrix = redistribute_heat(plate_matrix, delta_x, delta_y, delta_t, temp_conduct, density, temp_capacity);
     }
-//    std::string filename = "output.jpg";
-//    struct jpeg_compress_struct compress_handler{};
-//    struct jpeg_error_mgr err_handler{};
-//    compress_handler.err = jpeg_std_error(&err_handler);
-//    jpeg_create_compress(&compress_handler);
-//    FILE *outfile;
-//    if ((outfile = fopen(filename.c_str(), "wb")) == nullptr)
-//    {
-//        std::cout << "can't open " << filename << std::endl;
-//        return 1;
-//    }
-//    jpeg_stdio_dest(&compress_handler, outfile);
-//    compress_handler.image_width = plate_matrix.get_width();
-//    compress_handler.image_height = plate_matrix.get_height();
-//    compress_handler.input_components = 3;
-//    compress_handler.in_color_space = JCS_RGB;
-//    jpeg_set_defaults(&compress_handler);
-//    jpeg_set_quality(&compress_handler, 100, true);
-//
-//    jpeg_start_compress(&compress_handler, true);
-//    JSAMPROW row_buffer[1];
-//    row_buffer[0] = new JSAMPLE[plate_matrix.get_width() * 3];
-//    while (compress_handler.next_scanline < compress_handler.image_height)
-//    {
-//        for (size_t col = 0; col < compress_handler.image_width; col++)
-//        {
-//            auto rgb_color = heatmap_color(plate_matrix(compress_handler.next_scanline, col), 0., 100.);
-//            row_buffer[0][3 * col] = std::get<0>(rgb_color);
-//            row_buffer[0][3 * col + 1] = std::get<1>(rgb_color);
-//            row_buffer[0][3 * col + 2] = std::get<2>(rgb_color);
-//            std::cout << +row_buffer[0][3 * col] << " " << +row_buffer[0][3 * col + 1] << " " << +row_buffer[0][3 * col + 2] << ", ";
-//        }
-//        std::cout << std::endl;
-//        jpeg_write_scanlines(&compress_handler, row_buffer, 1);
-//    }
-//    delete [] row_buffer[0];
-//    jpeg_finish_compress(&compress_handler);
-//    jpeg_destroy_compress(&compress_handler);
-//    fclose(outfile);
 }
 
 template <typename T>
