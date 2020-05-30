@@ -50,14 +50,14 @@ Array2D redistribute_heat(Array2D &plate_matrix, const T& delta_x, const T& delt
 int main(int argc, char* argv[])
 {
     size_t rows = 5, cols = 5;
-    double delta_t = 0.1, delta_x = 1, delta_y = 1,
+    double delta_t = 0.005, delta_x = 0.1, delta_y = 0.1,
            temp_conduct = 74, density = 2'700, temp_capacity = 0.46;
     double delta_x_sq = delta_x * delta_x,
            delta_y_sq = delta_y * delta_y,
            phys_params = temp_conduct / (density * temp_capacity);
     double end_time = 2;
 
-    std::ifstream input_stream("data_in.txt", std::ifstream::in);
+    std::ifstream input_stream("./../../table.txt", std::ifstream::in);
     size_t buffer;
     input_stream >> rows >> cols;
     Array2D plate_matrix(cols, rows), plate_buffer;
@@ -107,15 +107,19 @@ int main(int argc, char* argv[])
                 if (i == 99)
                 {
                     auto c = heatmap_color(plate_matrix(row, col),0., 100.);
-                    std::cout << row << " " << col << std::endl;
-                    std::cout << c.red() << " " << c.green() << " " << c.blue() << std::endl;
                 }
                 out_img.pixelColor(col, row, heatmap_color(plate_matrix(row, col), 0., 100.));
             }
         }
         cur_path = output_path + std::to_string(i) + ".bmp";
         if (i % 25 == 0)
-            out_img.write(cur_path);
+        {
+            Magick::Image ttt = out_img;
+            ttt.scale(Magick::Geometry(cols * 10, rows * 10));
+
+            ttt.write(cur_path);
+        }
+
         plate_matrix = redistribute_heat(plate_matrix, delta_x, delta_y, delta_t, temp_conduct, density, temp_capacity);
     }
 //    std::string filename = "output.jpg";
