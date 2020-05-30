@@ -1,25 +1,43 @@
 #include <boost/mpi.hpp>
 #include <iostream>
 #include <vector>
+#include <type_traits>
+#include <algorithm>
+#include <cmath>
+#include <exception>
+
+template <typename T>
+inline bool von_neumann_criterion(const T& delta_x, const T& delta_y, const T& delta_t,
+            const T& conduction, const T& density, const T& capacity)
+{
+    if (!std::is_arithmetic<T>::value)
+        throw std::invalid_argument("Non-arithmetic type passed");
+    return delta_t <= 0.25 * pow(std::max(delta_x, delta_y), 2)
+                      * density * capacity / conduction;
+}
 
 int main(int argc, char* argv[])
 {
     size_t rows = 5, cols = 5;
-    double delta_t = 1, delta_x = 10, delta_y = 10,
-           temp_conduct = 1, density = 1, temp_capacity = 1;
+    double delta_t = 0.1, delta_x = 1, delta_y = 1,
+           temp_conduct = 74, density = 2'700, temp_capacity = 0.46;
     double delta_x_sq = delta_x * delta_x,
            delta_y_sq = delta_y * delta_y,
            phys_params = temp_conduct / (density * temp_capacity);
-    double end_time = 3;
+    double end_time = 2;
 
     //    Array2D plate_matrix(rows, cols);
-//    Array2D plate_buffer;
+    //    Array2D plate_buffer;
     std::vector<std::vector<double>> plate_matrix(rows, std::vector<double>(cols, 0)), plate_buffer;
-    plate_matrix[0][1] = 10;
+    plate_matrix[0][1] = 100;
 
+    if (!von_neumann_criterion(delta_x, delta_y, delta_t, temp_conduct, density, temp_capacity))
+    {
+        std::cout << "von Neumann criterion is not satisfied" << std::endl;
+        return 0;
+    }
 
-    // TODO: von Newman condition
-    for (size_t cur_time = 0; cur_time < end_time; cur_time += delta_t)
+    for (double cur_time = 0; cur_time < end_time; cur_time += delta_t)
     {
         plate_buffer = plate_matrix;
         for (size_t row = 1; row < rows - 1; ++row)
@@ -31,14 +49,5 @@ int main(int argc, char* argv[])
                 plate_matrix[row][col] = plate_buffer[row][col] + delta_t * phys_params * (laplasian_x + laplasian_y);
             }
         }
-        std::cout << std::endl;
-        for (int i = 0; i < rows; i++)
-        {
-          for (int j = 0; j < cols; j++)
-            std::cout << plate_matrix[i][j] << " ";
-          std::cout << std::endl;
-        }
-
-
     }
 }
