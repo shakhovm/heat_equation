@@ -7,6 +7,8 @@
 #include <cmath>
 #include <exception>
 #include <jpeglib.h>
+#include <cstdio>
+#include <string>
 #include "array2d.h"
 
 template <typename T>
@@ -58,9 +60,48 @@ int main(int argc, char* argv[])
     Array2D plate_matrix(cols, rows);
     Array2D plate_buffer;
     plate_matrix(0, 1) = 100;
+    plate_matrix(3, 2) = 50;
 
 
+    std::string filename = "output.jpg";
+    struct jpeg_compress_struct compress_handler{};
+    struct jpeg_error_mgr err_handler{};
+    compress_handler.err = jpeg_std_error(&err_handler);
+    jpeg_create_compress(&compress_handler);
+    FILE *outfile;
+    if ((outfile = fopen(filename.c_str(), "wb")) == nullptr)
+    {
+        std::cout << "can't open " << filename << std::endl;
+        return 1;
+    }
+    jpeg_stdio_dest(&compress_handler, outfile);
+    compress_handler.image_width = plate_matrix.get_width();
+    compress_handler.image_height = plate_matrix.get_height();
+    compress_handler.input_components = 3;
+    compress_handler.in_color_space = JCS_RGB;
+    jpeg_set_defaults(&compress_handler);
+    jpeg_set_quality(&compress_handler, 100000, true);
 
+    jpeg_start_compress(&compress_handler, true);
+    JSAMPROW row_buffer[1];
+    row_buffer[0] = new JSAMPLE[plate_matrix.get_width() * 3];
+    while (compress_handler.next_scanline < compress_handler.image_height)
+    {
+        for (size_t col = 0; col < compress_handler.image_width; col++)
+        {
+            auto rgb_color = heatmap_color(plate_matrix(compress_handler.next_scanline, col), 0., 100.);
+            row_buffer[0][3 * col] = std::get<0>(rgb_color);
+            row_buffer[0][3 * col + 1] = std::get<1>(rgb_color);
+            row_buffer[0][3 * col + 2] = std::get<2>(rgb_color);
+            std::cout << +row_buffer[0][3 * col] << " " << +row_buffer[0][3 * col + 1] << " " << +row_buffer[0][3 * col + 2] << ", ";
+        }
+        std::cout << std::endl;
+        jpeg_write_scanlines(&compress_handler, row_buffer, 1);
+    }
+    delete [] row_buffer[0];
+    jpeg_finish_compress(&compress_handler);
+    jpeg_destroy_compress(&compress_handler);
+    fclose(outfile);
 }
 
 template <typename T>
