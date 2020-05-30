@@ -1,8 +1,8 @@
 import random
 
 
-def gen(v_row_1, v_row_2, v_column_1, v_column_2):
-    table = [[0 for i in range(300)] for j in range(300)]
+def gen(v_row_1, v_row_2, v_column_1, v_column_2, row, column):
+    table = [[0 for i in range(row)] for j in range(column)]
     lst_1 = list()
     lst_2 = list()
     i = 0
@@ -63,6 +63,10 @@ def gen(v_row_1, v_row_2, v_column_1, v_column_2):
             break
 
     with open("table.txt", 'w') as f:
+        f.write(str(row))
+        f.write(' ')
+        f.write(str(column))
+        f.write('\n')
         for i in range(len(table)):
             line = str()
             for j in range(len(table[i])):
@@ -74,4 +78,4 @@ def gen(v_row_1, v_row_2, v_column_1, v_column_2):
 
 
 if __name__ == "__main__":
-    gen([40,100,1,8], [8,5,9,42], [100,8,5,54,98,56], [22,77,15,4,9,52])
+    gen([40,100,1,8], [8,5,9,42], [100,8,5,54,98,56], [22,77,15,4,9,52], 300, 300)
