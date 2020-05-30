@@ -26,9 +26,9 @@ public:
 
     inline iterator end() { return data_ + width*height + 1 ;}
 
-    size_t& get_width() { return width; }
+    size_t get_width() const { return width; }
 
-    size_t& get_height() { return height; }
+    size_t get_height() const { return height; }
 
     inline double* data() { return data_; }
 
