@@ -12,5 +12,6 @@ set(SRC array2d.cpp)
 set(INC array2d.h)
 
 add_executable(mpi_lab main.cpp ${SRC} ${INC})
-
+add_executable(mpi_lab2 main2.cpp ${SRC} ${INC})
 target_link_libraries(mpi_lab Boost::mpi Boost::serialization JPEG::JPEG)
+target_link_libraries(mpi_lab2 Boost::mpi Boost::serialization JPEG::JPEG)

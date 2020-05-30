@@ -7,8 +7,6 @@
 #include <cmath>
 #include <exception>
 #include <jpeglib.h>
-#include <cstdio>
-#include <string>
 #include "array2d.h"
 
 template <typename T>
@@ -47,8 +45,7 @@ Array2D redistribute_heat(Array2D &plate_matrix, const T& delta_x, const T& delt
     return plate_buffer;
 }
 
-int main(int argc, char* argv[])
-{
+void f() {
     size_t rows = 5, cols = 5;
     double delta_t = 100.1, delta_x = 1, delta_y = 1,
            temp_conduct = 74, density = 2'700, temp_capacity = 0.46;
@@ -60,48 +57,70 @@ int main(int argc, char* argv[])
     Array2D plate_matrix(cols, rows);
     Array2D plate_buffer;
     plate_matrix(0, 1) = 100;
-    plate_matrix(3, 2) = 50;
+}
 
 
-    std::string filename = "output.jpg";
-    struct jpeg_compress_struct compress_handler{};
-    struct jpeg_error_mgr err_handler{};
-    compress_handler.err = jpeg_std_error(&err_handler);
-    jpeg_create_compress(&compress_handler);
-    FILE *outfile;
-    if ((outfile = fopen(filename.c_str(), "wb")) == nullptr)
+template <typename T>
+Array2D mpi_redistribute_heat(Array2D &plate_matrix, const T& delta_x, const T& delta_y, const T& delta_t,
+                          const T& conduction, const T& density, const T& capacity)
+{
+    size_t rows = plate_matrix.get_height(),
+            cols = plate_matrix.get_width();
+    double delta_x_sq = delta_x * delta_x,
+            delta_y_sq = delta_y * delta_y,
+            phys_params = conduction / (density * capacity);
+    Array2D plate_buffer = plate_matrix;
+
+
+
+    for (size_t row = 1; row < rows - 1; ++row)
     {
-        std::cout << "can't open " << filename << std::endl;
-        return 1;
-    }
-    jpeg_stdio_dest(&compress_handler, outfile);
-    compress_handler.image_width = plate_matrix.get_width();
-    compress_handler.image_height = plate_matrix.get_height();
-    compress_handler.input_components = 3;
-    compress_handler.in_color_space = JCS_RGB;
-    jpeg_set_defaults(&compress_handler);
-    jpeg_set_quality(&compress_handler, 100000, true);
-
-    jpeg_start_compress(&compress_handler, true);
-    JSAMPROW row_buffer[1];
-    row_buffer[0] = new JSAMPLE[plate_matrix.get_width() * 3];
-    while (compress_handler.next_scanline < compress_handler.image_height)
-    {
-        for (size_t col = 0; col < compress_handler.image_width; col++)
+        for (size_t col = 1; col < cols - 1; ++col)
         {
-            auto rgb_color = heatmap_color(plate_matrix(compress_handler.next_scanline, col), 0., 100.);
-            row_buffer[0][3 * col] = std::get<0>(rgb_color);
-            row_buffer[0][3 * col + 1] = std::get<1>(rgb_color);
-            row_buffer[0][3 * col + 2] = std::get<2>(rgb_color);
-            std::cout << +row_buffer[0][3 * col] << " " << +row_buffer[0][3 * col + 1] << " " << +row_buffer[0][3 * col + 2] << ", ";
+            double laplasian_x = (plate_matrix(row, col - 1) - 2 * plate_matrix(row, col) + plate_matrix(row, col + 1)) / delta_x_sq,
+                    laplasian_y = (plate_matrix(row - 1, col) - 2 * plate_matrix(row, col) + plate_matrix(row + 1, col)) / delta_y_sq;
+            plate_buffer(row, col) = plate_matrix(row, col) + delta_t * phys_params * (laplasian_x + laplasian_y);
         }
-        std::cout << std::endl;
-        jpeg_write_scanlines(&compress_handler, row_buffer, 1);
     }
-    delete [] row_buffer[0];
-    jpeg_finish_compress(&compress_handler);
-    jpeg_destroy_compress(&compress_handler);
-    fclose(outfile);
+    return plate_buffer;
+}
+
+
+int main(int argc, char* argv[])
+{
+    boost::mpi::environment env{argc, argv};
+    boost::mpi::communicator world;
+
+    size_t rows = 6, cols = 6;
+    double delta_t = 100.1, delta_x = 1, delta_y = 1,
+           temp_conduct = 74, density = 2'700, temp_capacity = 0.46;
+    double delta_x_sq = delta_x * delta_x,
+           delta_y_sq = delta_y * delta_y,
+           phys_params = temp_conduct / (density * temp_capacity);
+    double end_time = 2;
+
+    Array2D plate_matrix(rows, cols);
+    plate_matrix(5, 5) = 100;
+    Array2D plate_matrix_first = plate_matrix(0, rows / 2, 0, cols);
+    Array2D plate_matrix_second = plate_matrix(rows / 2, rows, 0, cols);
+    if (world.rank() == 1) {
+        auto x = mpi_redistribute_heat(plate_matrix_first, delta_x, delta_y, delta_t,
+                              temp_conduct, density, temp_capacity);
+        Array2D array(3, 6);
+        std::cout << "HELLO FTOM 1" << std::endl;
+
+        world.recv(0, 0, array);
+    } else if (world.rank() == 0) {
+        auto x = mpi_redistribute_heat(plate_matrix_second, delta_x, delta_y, delta_t,
+                              temp_conduct, density, temp_capacity);
+        std::cout << "HELLO FTOM 0" << std::endl;
+        x.print();
+        world.send(1, 0, x);
+    }
+
+
+//    plate_matrix_first.print();/*
+//    plate_matrix_second.print();*/
 }
 
 template <typename T>
