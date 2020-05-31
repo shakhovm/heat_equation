@@ -119,7 +119,7 @@ void f() {
     {
         plate_matrix = redistribute_heat(plate_matrix, delta_x, delta_y, delta_t, temp_conduct, density, temp_capacity);
     }
-    Magick::Image out_img(Magick::Geometry(cols, rows), "white");
+    Magick::Image out_img(size.c_str(), "white");
     out_img.type(Magick::TrueColorType);
     for (size_t row = 0; row < rows; ++row)
     {
@@ -129,7 +129,7 @@ void f() {
             out_img.pixelColor(col, row, heatmap_color(plate_matrix(row, col), 0., 100.));
         }
     }
-    out_img.scale(Magick::Geometry(cols * 10, rows * 10));
+    out_img.scale(scaled_size.c_str());
     out_img.write("output_mpi.bmp");
 }
 
@@ -170,6 +170,9 @@ Array2D mpi_redistribute_heat(Array2D &plate_matrix, eqution_params_t params,
     params.col_end = cols - 1;
 
     Array2D plate_buffer = plate_matrix;
+
+
+
     if (world.rank() == 0) {
         Array2D upper_bound = plate_matrix(rows - 1, rows, 0, cols);
         world.send(world.rank() + 1, 0, upper_bound);
@@ -202,7 +205,7 @@ Array2D mpi_redistribute_heat(Array2D &plate_matrix, eqution_params_t params,
         for (size_t col = 1; col < cols - 1; ++col)
         {
             double laplasian_x = (plate_matrix(0, col - 1) - 2 * plate_matrix(0, col) + plate_matrix(0, col + 1)) / params.delta_x_sq;
-            double laplasian_y = (lower_bound(0, col) - 2 * plate_matrix(0, col) + plate_matrix(1, col)) / params.delta_y_sq;
+            double laplasian_y = (new_lower_bound(0, col) - 2 * plate_matrix(0, col) + plate_matrix(1, col)) / params.delta_y_sq;
             plate_buffer(0, col) = plate_matrix(0, col) + params.delta_t * params.phys_params * (laplasian_x + laplasian_y);
         }
 
@@ -248,6 +251,13 @@ void misha_function(Array2D& plate_matrix, boost::mpi::communicator& world,
     size_t iterations = 1000;
     Array2D plate_matrix_first = plate_matrix(0, rows / 2, 0, cols);
     Array2D plate_matrix_second = plate_matrix(rows / 2, rows, 0, cols);
+    std::stringstream ss;
+    ss << cols << "x" << rows;
+    std::string size = ss.str();
+    std::stringstream ss2;
+    ss2 << cols*10 << "x" << rows*10;
+    std::string scaled_size = ss2.str();
+
     if (world.rank() == 1) {
 
         for (size_t i = 0; i < iterations; ++i) {
@@ -268,7 +278,7 @@ void misha_function(Array2D& plate_matrix, boost::mpi::communicator& world,
                 }
             }
             Magick::InitializeMagick("");
-            Magick::Image out_img(Magick::Geometry(cols, rows), "white");
+            Magick::Image out_img(size.c_str(), "white");
             out_img.type(Magick::TrueColorType);
             for (size_t row = 0; row < rows; ++row)
             {
@@ -278,8 +288,8 @@ void misha_function(Array2D& plate_matrix, boost::mpi::communicator& world,
                     out_img.pixelColor(col, row, heatmap_color(plate_matrix(row, col), 0., 100.));
                 }
             }
-            out_img.scale(Magick::Geometry(cols * 10, rows * 10));
-            out_img.write("output_mpi_misha.bmp");
+            out_img.scale(scaled_size.c_str());
+            out_img.write("../output/output_mpi_misha.bmp");
         }
     }
 
@@ -313,7 +323,7 @@ int main(int argc, char* argv[])
     boost::mpi::environment env{argc, argv};
     boost::mpi::communicator world;
     eqution_params_t params = params_init();
-    Array2D plate_matrix = file_handler("./../../table.txt");
+    Array2D plate_matrix = file_handler("../table.txt");
 
 //    if (world.rank() == 0)
 //        sequantial_program();
