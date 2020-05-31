@@ -47,8 +47,7 @@ Array2D redistribute_heat(Array2D &plate_matrix, const T& delta_x, const T& delt
     return plate_buffer;
 }
 
-int main(int argc, char* argv[])
-{
+void f() {
     size_t rows = 5, cols = 5;
     double delta_t = 0.005, delta_x = 0.1, delta_y = 0.1,
            temp_conduct = 400, density = 8'900, temp_capacity = 1;
@@ -57,6 +56,7 @@ int main(int argc, char* argv[])
            phys_params = temp_conduct / (density * temp_capacity);
     double end_time = 2;
 
+<<<<<<< HEAD:main.cpp
     std::ifstream input_stream("./../../table.txt", std::ifstream::in);
     size_t buffer;
     input_stream >> rows >> cols;
@@ -102,6 +102,75 @@ int main(int argc, char* argv[])
 
         plate_matrix = redistribute_heat(plate_matrix, delta_x, delta_y, delta_t, temp_conduct, density, temp_capacity);
     }
+=======
+    Array2D plate_matrix(cols, rows);
+    Array2D plate_buffer;
+    plate_matrix(0, 1) = 100;
+}
+
+
+template <typename T>
+Array2D mpi_redistribute_heat(Array2D &plate_matrix, const T& delta_x, const T& delta_y, const T& delta_t,
+                          const T& conduction, const T& density, const T& capacity)
+{
+    size_t rows = plate_matrix.get_height(),
+            cols = plate_matrix.get_width();
+    double delta_x_sq = delta_x * delta_x,
+            delta_y_sq = delta_y * delta_y,
+            phys_params = conduction / (density * capacity);
+    Array2D plate_buffer = plate_matrix;
+
+
+
+    for (size_t row = 1; row < rows - 1; ++row)
+    {
+        for (size_t col = 1; col < cols - 1; ++col)
+        {
+            double laplasian_x = (plate_matrix(row, col - 1) - 2 * plate_matrix(row, col) + plate_matrix(row, col + 1)) / delta_x_sq,
+                    laplasian_y = (plate_matrix(row - 1, col) - 2 * plate_matrix(row, col) + plate_matrix(row + 1, col)) / delta_y_sq;
+            plate_buffer(row, col) = plate_matrix(row, col) + delta_t * phys_params * (laplasian_x + laplasian_y);
+        }
+    }
+    return plate_buffer;
+}
+
+
+int main(int argc, char* argv[])
+{
+    boost::mpi::environment env{argc, argv};
+    boost::mpi::communicator world;
+
+    size_t rows = 6, cols = 6;
+    double delta_t = 100.1, delta_x = 1, delta_y = 1,
+           temp_conduct = 74, density = 2'700, temp_capacity = 0.46;
+    double delta_x_sq = delta_x * delta_x,
+           delta_y_sq = delta_y * delta_y,
+           phys_params = temp_conduct / (density * temp_capacity);
+    double end_time = 2;
+
+    Array2D plate_matrix(rows, cols);
+    plate_matrix(5, 5) = 100;
+    Array2D plate_matrix_first = plate_matrix(0, rows / 2, 0, cols);
+    Array2D plate_matrix_second = plate_matrix(rows / 2, rows, 0, cols);
+    if (world.rank() == 1) {
+        auto x = mpi_redistribute_heat(plate_matrix_first, delta_x, delta_y, delta_t,
+                              temp_conduct, density, temp_capacity);
+        Array2D array(3, 6);
+        std::cout << "HELLO FTOM 1" << std::endl;
+
+        world.recv(0, 0, array);
+    } else if (world.rank() == 0) {
+        auto x = mpi_redistribute_heat(plate_matrix_second, delta_x, delta_y, delta_t,
+                              temp_conduct, density, temp_capacity);
+        std::cout << "HELLO FTOM 0" << std::endl;
+        x.print();
+        world.send(1, 0, x);
+    }
+
+
+//    plate_matrix_first.print();/*
+//    plate_matrix_second.print();*/
+>>>>>>> 1a94927ea2ff061888ba3c426502551be9dd658e:main2.cpp
 }
 
 template <typename T>

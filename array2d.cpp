@@ -6,7 +6,8 @@ void Array2D::array_copy(double* to, const double *from, size_t size)  {
     }
 }
 
-Array2D::Array2D(size_t row, size_t col, double value) : data_(new double[row*col + 1]), width(row), height(col)
+Array2D::Array2D(size_t row, size_t col, double value) :
+    data_(new double[row*col + 1]), width(row), height(col)
 {
     for (size_t i = 0; i < row*col; ++i) {
         data_[i] = value;
