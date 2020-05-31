@@ -13,6 +13,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(SRC array2d.cpp)
 set(INC array2d.h)
 
-add_executable(mpi_lab main.cpp ${SRC} ${INC})
+add_executable(mpi_lab main2.cpp ${SRC} ${INC})
 
 target_link_libraries(mpi_lab Boost::mpi Boost::serialization ${ImageMagick_LIBRARIES})
