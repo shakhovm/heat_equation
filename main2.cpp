@@ -184,10 +184,10 @@ Array2D mpi_redistribute_heat(Array2D &plate_matrix, eqution_params_t params,
     Array2D plate_buffer = plate_matrix;
     if (world.rank() == 0) {
         Array2D upper_bound = plate_matrix(rows - 1, rows, 0, cols);
-        world.isend(world.rank() + 1, 0, upper_bound);
+        world.send(world.rank() + 1, 0, upper_bound);
         calculate_table(params, plate_matrix, plate_buffer);
         Array2D new_upper_bound(1, cols);
-        world.irecv(world.rank() + 1, 0, new_upper_bound);
+        world.recv(world.rank() + 1, 0, new_upper_bound);
 
 
         for (size_t col = 1; col < cols - 1; ++col) {
@@ -204,12 +204,12 @@ Array2D mpi_redistribute_heat(Array2D &plate_matrix, eqution_params_t params,
 
     } else if (world.rank() == world.size() - 1) {
         Array2D lower_bound = plate_matrix(0, 1, 0, cols);
-        world.isend(world.rank() - 1, 0, lower_bound);
+        world.send(world.rank() - 1, 0, lower_bound);
 
         calculate_table(params, plate_matrix, plate_buffer);
         Array2D new_lower_bound(1, plate_matrix.get_width());
 
-        world.irecv(world.rank() - 1, 0, new_lower_bound);
+        world.recv(world.rank() - 1, 0, new_lower_bound);
 
         for (size_t col = 1; col < cols - 1; ++col)
         {
@@ -264,51 +264,30 @@ void misha_function(Array2D& plate_matrix, boost::mpi::communicator& world,
 
         for (size_t i = 0; i < iterations; ++i) {
             plate_matrix_second = mpi_redistribute_heat(plate_matrix_second, params, world);
-//            plate_matrix_second.print();
-
-//            Array2D x(6, 6, 1290.11231232313);
-            plate_matrix_second.print();
             world.send(0, 0, plate_matrix_second);
-//            world.send(0, 0, plate_matrix_second.data(), plate_matrix_second.get_width()*
-//                       plate_matrix_second.get_height());
         }
-//        Array2D array(rows / 2, cols);
-//        world.irecv(0, 0, array);
-////        for (size_t i = 0; i < rows / 2; ++i) {
-////            for (size_t j = 0; j < cols; ++j) {
-////               plate_matrix(i, j) = array(i, j);
-////               plate_matrix(i + rows / 2, j) = x(i, j);
-////            }
-////        }
-//        array.print();
+
     } else if (world.rank() == 0) {
         for (size_t i = 0; i < iterations; ++i) {
             plate_matrix_first = mpi_redistribute_heat(plate_matrix_first, params, world);
-//            plate_matrix_first.print();
-//            double* data = new double[plate_matrix_first.get_width()*plate_matrix_first.get_height()];
-//             Array2D x(6, 6);
-//            double x;
-            world.recv(1, 0, plate_matrix_first);
-            plate_matrix_first.print();
-//            std::cout << x;
-////            x.print();
-////            for (size_t i = 0; i < 18; ++i) {
-////                std::cout << data[i] << " ";
-////            }
-//            std::cout << std::endl;
+            Array2D new_matrix(rows / 2, cols);
+            world.recv(1, 0, new_matrix);
+
+            for (size_t i = 0; i < rows / 2; ++i) {
+                for (size_t j = 0; j < cols; ++j) {
+                   plate_matrix(i, j) = plate_matrix_first(i, j);
+                   plate_matrix(i + rows / 2, j) = new_matrix(i, j);
+                }
+            }
         }
-
-
-//        world.isend(1, 0, x.data());
 
     }
 
 
-//    plate_matrix_first.print();/*
-//    plate_matrix_second.print();*/
 }
 
 void sequantial_program() {
+    size_t iteration = 1;
     std::cout << "seq program!" << std::endl;
     Array2D plate_matrix = file_handler("../table.txt");
 
@@ -319,7 +298,7 @@ void sequantial_program() {
            phys_params = temp_conduct / (density * temp_capacity);
     double end_time = 2;
 
-    for(size_t i = 0; i < 10; ++i) {
+    for(size_t i = 0; i < iteration; ++i) {
         plate_matrix = redistribute_heat(plate_matrix, delta_x, delta_y, delta_t,
                                                temp_conduct, density, temp_capacity);
         plate_matrix.print();
@@ -336,8 +315,8 @@ int main(int argc, char* argv[])
     eqution_params_t params = params_init();
     Array2D plate_matrix = file_handler("../table.txt");
 
-//    std::cout << std::endl;
-//    sequantial_program();
+    if (world.rank() == 0)
+        sequantial_program();
 
     misha_function(plate_matrix, world, params);
     std::cout << std::endl;
