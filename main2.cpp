@@ -56,7 +56,6 @@ void f() {
            phys_params = temp_conduct / (density * temp_capacity);
     double end_time = 2;
 
-<<<<<<< HEAD:main.cpp
     std::ifstream input_stream("./../../table.txt", std::ifstream::in);
     size_t buffer;
     input_stream >> rows >> cols;
@@ -102,7 +101,6 @@ void f() {
 
         plate_matrix = redistribute_heat(plate_matrix, delta_x, delta_y, delta_t, temp_conduct, density, temp_capacity);
     }
-=======
     Array2D plate_matrix(cols, rows);
     Array2D plate_buffer;
     plate_matrix(0, 1) = 100;
@@ -170,7 +168,6 @@ int main(int argc, char* argv[])
 
 //    plate_matrix_first.print();/*
 //    plate_matrix_second.print();*/
->>>>>>> 1a94927ea2ff061888ba3c426502551be9dd658e:main2.cpp
 }
 
 template <typename T>
