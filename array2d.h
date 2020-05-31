@@ -15,6 +15,14 @@ public:
     void array_copy(double* to, const double *from, size_t size);
 
     Array2D(): data_(nullptr){};
+
+    Array2D(const double* data, size_t height, size_t width) : width(width), height(height) {
+        data_ = new double[width*height + 1];
+        for (size_t i = 0; i < width*height; ++i) {
+            data_[i] = data[i];
+        }
+    }
+
     Array2D(size_t width, size_t height, double value = 0.);
     Array2D(const Array2D& array);
 
@@ -22,7 +30,9 @@ public:
     ~Array2D();
 
     void swap(Array2D& array);
-    double &operator()(size_t width, size_t height);
+    inline double &operator()(size_t row, size_t col) { return data_[height*col + row]; }
+
+    inline const double &operator()(size_t row, size_t col) const { return data_[height*col + row]; }
 
     Array2D operator()(size_t row_first, size_t row_last, size_t col_first, size_t col_last) {
         Array2D array(row_last - row_first, col_last - col_first);
@@ -46,8 +56,8 @@ public:
     inline double* data() { return data_; }
 
     void print() {
-        for (size_t i = 0; i < width; ++i) {
-            for (size_t j = 0; j < height; ++j) {
+        for (size_t i = 0; i < height; ++i) {
+            for (size_t j = 0; j < width; ++j) {
                 std::cout << operator()(i, j) << " ";
             }
             std::cout << std::endl;

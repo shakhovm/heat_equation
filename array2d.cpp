@@ -7,7 +7,7 @@ void Array2D::array_copy(double* to, const double *from, size_t size)  {
 }
 
 Array2D::Array2D(size_t row, size_t col, double value) :
-    data_(new double[row*col + 1]), width(row), height(col)
+    data_(new double[row*col + 1]), width(col), height(row)
 {
     for (size_t i = 0; i < row*col; ++i) {
         data_[i] = value;
@@ -39,7 +39,3 @@ void Array2D::swap(Array2D &array)
     std::swap(array.height, height);
 }
 
-double &Array2D::operator()(size_t row, size_t col)
-{
-    return data_[width*col + row];
-}

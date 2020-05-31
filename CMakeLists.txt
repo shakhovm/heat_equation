@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.5)
 project(mpi_lab LANGUAGES CXX)
 
 find_package(Boost COMPONENTS mpi serialization REQUIRED)
-find_package(ImageMagick REQUIRED COMPONENTS Magick++ MagickWand MagickCore)
+find_package(ImageMagick COMPONENTS Magick++ MagickWand convert MagickCore REQUIRED)
 include_directories(${ImageMagick_INCLUDE_DIRS})
 link_directories(${ImageMagick_INCLUDE_DIRS})
 
