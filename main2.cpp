@@ -88,7 +88,7 @@ void f() {
            phys_params = temp_conduct / (density * temp_capacity);
     double end_time = 2;
 
-    std::ifstream input_stream("../table.txt", std::ifstream::in);
+    std::ifstream input_stream("./../../table.txt", std::ifstream::in);
     size_t buffer;
     input_stream >> rows >> cols;
     Array2D plate_matrix(cols, rows), plate_buffer;
@@ -114,35 +114,23 @@ void f() {
     ss.clear();
     ss << rows*10 << "x" << cols*10;
     std::string scaled_size = ss.str();
-    for (int i = 0; i < 2000; i++)
+    Magick::InitializeMagick("");
+    for (int i = 0; i < 1000; i++)
     {
-        Magick::InitializeMagick("");
-
-        Magick::Image out_img(size.c_str(), "white");
-        out_img.type(Magick::TrueColorType);
-        for (size_t row = 0; row < rows; ++row) {
-            for (size_t col = 0; col < cols; ++col) {
-                if (i == 99)
-                {
-                    auto c = heatmap_color(plate_matrix(row, col),0., 100.);
-                }
-                out_img.pixelColor(col, row, heatmap_color(plate_matrix(row, col), 0., 100.));
-            }
-        }
-        cur_path = output_path + std::to_string(i) + ".bmp";
-        if (i % 25 == 0)
-        {
-            Magick::Image ttt = out_img;
-            ttt.scale(scaled_size.c_str());
-
-            ttt.write(cur_path);
-        }
-
         plate_matrix = redistribute_heat(plate_matrix, delta_x, delta_y, delta_t, temp_conduct, density, temp_capacity);
     }
-//    Array2D pla/*te_matrix(cols, rows);
-//    Array2D plate_buffer;
-//    plate_matri*/x(0, 1) = 100;
+    Magick::Image out_img(Magick::Geometry(cols, rows), "white");
+    out_img.type(Magick::TrueColorType);
+    for (size_t row = 0; row < rows; ++row)
+    {
+        for (size_t col = 0; col < cols; ++col)
+        {
+            auto color = heatmap_color(plate_matrix(row, col), 0.,100.);
+            out_img.pixelColor(col, row, heatmap_color(plate_matrix(row, col), 0., 100.));
+        }
+    }
+    out_img.scale(Magick::Geometry(cols * 10, rows * 10));
+    out_img.write("output_mpi.bmp");
 }
 
 struct eqution_params_t {
@@ -257,7 +245,7 @@ void misha_function(Array2D& plate_matrix, boost::mpi::communicator& world,
     size_t rows = plate_matrix.get_height(), cols = plate_matrix.get_width();
 
     double end_time = 2;
-    size_t iterations = 1;
+    size_t iterations = 1000;
     Array2D plate_matrix_first = plate_matrix(0, rows / 2, 0, cols);
     Array2D plate_matrix_second = plate_matrix(rows / 2, rows, 0, cols);
     if (world.rank() == 1) {
@@ -279,8 +267,20 @@ void misha_function(Array2D& plate_matrix, boost::mpi::communicator& world,
                    plate_matrix(i + rows / 2, j) = new_matrix(i, j);
                 }
             }
+            Magick::InitializeMagick("");
+            Magick::Image out_img(Magick::Geometry(cols, rows), "white");
+            out_img.type(Magick::TrueColorType);
+            for (size_t row = 0; row < rows; ++row)
+            {
+                for (size_t col = 0; col < cols; ++col)
+                {
+                    auto color = heatmap_color(plate_matrix(row, col), 0.,100.);
+                    out_img.pixelColor(col, row, heatmap_color(plate_matrix(row, col), 0., 100.));
+                }
+            }
+            out_img.scale(Magick::Geometry(cols * 10, rows * 10));
+            out_img.write("output_mpi_misha.bmp");
         }
-
     }
 
 
@@ -289,7 +289,7 @@ void misha_function(Array2D& plate_matrix, boost::mpi::communicator& world,
 void sequantial_program() {
     size_t iteration = 1;
     std::cout << "seq program!" << std::endl;
-    Array2D plate_matrix = file_handler("../table.txt");
+    Array2D plate_matrix = file_handler("./../../table.txt");
 
     double delta_t = 0.005, delta_x = 0.1, delta_y = 0.1,
            temp_conduct = 400, density = 8'900, temp_capacity = 1;
@@ -313,12 +313,13 @@ int main(int argc, char* argv[])
     boost::mpi::environment env{argc, argv};
     boost::mpi::communicator world;
     eqution_params_t params = params_init();
-    Array2D plate_matrix = file_handler("../table.txt");
+    Array2D plate_matrix = file_handler("./../../table.txt");
 
-    if (world.rank() == 0)
-        sequantial_program();
+//    if (world.rank() == 0)
+//        sequantial_program();
 
     misha_function(plate_matrix, world, params);
+//    f();
     std::cout << std::endl;
 }
 
