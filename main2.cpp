@@ -47,7 +47,7 @@ Array2D redistribute_heat(Array2D &plate_matrix, const T& delta_x, const T& delt
     return plate_buffer;
 }
 
-void f() {
+int f() {
     size_t rows = 5, cols = 5;
     double delta_t = 0.005, delta_x = 0.1, delta_y = 0.1,
            temp_conduct = 400, density = 8'900, temp_capacity = 1;
@@ -101,9 +101,6 @@ void f() {
 
         plate_matrix = redistribute_heat(plate_matrix, delta_x, delta_y, delta_t, temp_conduct, density, temp_capacity);
     }
-    Array2D plate_matrix(cols, rows);
-    Array2D plate_buffer;
-    plate_matrix(0, 1) = 100;
 }
 
 
