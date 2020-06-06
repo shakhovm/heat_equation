@@ -12,6 +12,10 @@
 #include <fstream>
 #include "array2d.h"
 #include <sstream>
+#include <thread>
+#include "concur_queue.h"
+
+
 template <typename T>
 inline bool von_neumann_criterion(const T& delta_x, const T& delta_y, const T& delta_t,
             const T& conduction, const T& density, const T& capacity)
@@ -88,7 +92,7 @@ void f() {
            phys_params = temp_conduct / (density * temp_capacity);
     double end_time = 2;
     size_t iteration = 100;
-    std::ifstream input_stream("./plate(1).txt", std::ifstream::in);
+    std::ifstream input_stream("./table.txt", std::ifstream::in);
     double buffer;
     input_stream >> rows >> cols;
     Array2D plate_matrix(cols, rows), plate_buffer;
@@ -174,15 +178,12 @@ Array2D mpi_redistribute_heat(Array2D &plate_matrix, eqution_params_t params,
 
     Array2D plate_buffer = plate_matrix;
 
-
-
-    if (world.rank() == 0) {
+    if (world.rank() == 1) {
         Array2D upper_bound = plate_matrix(rows - 1, rows, 0, cols);
-        world.send(world.rank() + 1, 0, upper_bound);
+        world.send(2, 0, upper_bound);
         calculate_table(params, plate_matrix, plate_buffer);
         Array2D new_upper_bound(1, cols);
-        world.recv(world.rank() + 1, 0, new_upper_bound);
-
+        world.recv(2, 0, new_upper_bound);
 
         for (size_t col = 1; col < cols - 1; ++col) {
             double laplasian_x = (plate_matrix(rows - 1, col - 1) - 2 * plate_matrix(rows - 1, col) +
@@ -194,16 +195,15 @@ Array2D mpi_redistribute_heat(Array2D &plate_matrix, eqution_params_t params,
             plate_buffer(rows - 1, col) = plate_matrix(rows - 1, col) + params.delta_t *
                     params.phys_params * (laplasian_x + laplasian_y);
         }
-//        plate_buffer.print();
 
-    } else if (world.rank() == world.size() - 1) {
+    } else if (world.rank() == 2) {
         Array2D lower_bound = plate_matrix(0, 1, 0, cols);
-        world.send(world.rank() - 1, 0, lower_bound);
+        world.send(1, 0, lower_bound);
 
         calculate_table(params, plate_matrix, plate_buffer);
         Array2D new_lower_bound(1, plate_matrix.get_width());
 
-        world.recv(world.rank() - 1, 0, new_lower_bound);
+        world.recv(1, 0, new_lower_bound);
 
         for (size_t col = 1; col < cols - 1; ++col)
         {
@@ -213,25 +213,6 @@ Array2D mpi_redistribute_heat(Array2D &plate_matrix, eqution_params_t params,
         }
 
     }
-
-
-
-//    else {
-
-//        Array2D upper_bound = plate_matrix(plate_matrix.get_height() - 1, plate_matrix.get_height(),
-//                                           0, plate_buffer.get_width());
-//        Array2D lower_bound = plate_matrix(0, 1, 0, plate_buffer.get_width());
-
-//        world.send(world.rank() - 1, 0, lower_bound);
-//        world.send(world.rank() + 1, 0, upper_bound);
-
-//        calculate_table(params, plate_matrix, plate_buffer);
-
-//        Array2D new_upper_bound(1, plate_matrix.get_width());
-//        Array2D new_lower_bound(1, plate_matrix.get_width());
-//        world.recv(world.rank() - 1, 0, new_lower_bound);
-//        world.recv(world.rank() + 1, 0, new_upper_bound);
-//    }
 
     return plate_buffer;
 }
@@ -244,14 +225,23 @@ eqution_params_t params_init() {
            phys_params = temp_conduct / (density * temp_capacity);
     return eqution_params_t{1, 1, 1, 1, delta_t, phys_params, delta_x_sq, delta_y_sq};
 }
+
+void recv_segment(const size_t rank, concur_queue<SEGMENT>& seg_queue,
+                    boost::mpi::communicator& world,
+                    const size_t rows, const size_t cols)
+{
+    Array2D segment_matrix(rows, cols);
+    std::cout << " waiting for recv rank " << rank << std::endl;
+    world.recv(rank, 0, segment_matrix);
+    seg_queue.push(SEGMENT(segment_matrix, rank));
+}
+
 void misha_function(Array2D& plate_matrix, boost::mpi::communicator& world,
                     const eqution_params_t& params) {
-
-
     size_t rows = plate_matrix.get_height(), cols = plate_matrix.get_width();
 
     double end_time = 2;
-    size_t iterations = 0;
+    size_t iterations = 500;
     Array2D plate_matrix_first = plate_matrix(0, rows / 2, 0, cols);
     Array2D plate_matrix_second = plate_matrix(rows / 2, rows, 0, cols);
     std::stringstream ss;
@@ -261,30 +251,38 @@ void misha_function(Array2D& plate_matrix, boost::mpi::communicator& world,
     ss2 << cols*10 << "x" << rows*10;
     std::string scaled_size = ss.str();
 
-    if (world.rank() == 1) {
-
-        for (size_t i = 0; i < iterations; ++i) {
-            plate_matrix_second = mpi_redistribute_heat(plate_matrix_second, params, world);
-
+    if (world.rank() == 0)
+    {
+        // getting parts and merging
+        size_t com_size = world.size(), cur_segment_rank;
+        size_t segment_rows_n = rows / (com_size - 1);
+        std::vector<std::thread> recv_threads;
+        concur_queue<SEGMENT> segments;
+        for (size_t com_rank = 1; com_rank < com_size; ++com_rank)
+        {
+            recv_threads.emplace_back(recv_segment, com_rank, std::ref(segments), std::ref(world), segment_rows_n, cols);
         }
-        world.send(0, 0, plate_matrix_second);
-
-    } else if (world.rank() == 0) {
-        for (size_t i = 0; i < iterations; ++i) {
-            plate_matrix_first = mpi_redistribute_heat(plate_matrix_first, params, world);
-
-
-
-        }
-        Array2D new_matrix(rows / 2, cols);
-        world.recv(1, 0, new_matrix);
-
-        for (size_t i = 0; i < rows / 2; ++i) {
-            for (size_t j = 0; j < cols; ++j) {
-               plate_matrix(i, j) = plate_matrix_first(i, j);
-               plate_matrix(i + rows / 2, j) = new_matrix(i, j);
+        // merge segments
+        SEGMENT cur_segment;
+        size_t segments_left = com_size - 1;
+        size_t row_offset;
+        while (segments_left)
+        {
+            row_offset = cur_segment.second * segment_rows_n;
+            cur_segment = segments.pop();
+            std::cout << std::endl << "checkpoint; segment rank " << cur_segment.second << std::endl;
+            for (size_t row = 0; row < segment_rows_n; ++row)
+            {
+                for (size_t col = 0; col < cols; ++col)
+                {
+                    plate_matrix(row + row_offset, col) = cur_segment.first(row, col);
+                }
             }
+            --segments_left;
         }
+        for (auto& item: recv_threads)
+            item.join();
+
         Magick::InitializeMagick("");
         Magick::Image out_img(size.c_str(), "white");
         out_img.type(Magick::TrueColorType);
@@ -297,10 +295,25 @@ void misha_function(Array2D& plate_matrix, boost::mpi::communicator& world,
             }
         }
         out_img.scale(scaled_size.c_str());
-        out_img.write("../output/output_mpi_misha.bmp");
+        out_img.write("./output/output_mpi_misha.bmp");
+
+    } else if (world.rank() == 1)
+    {
+        for (size_t i = 0; i < iterations; ++i)
+        {
+            plate_matrix_first = mpi_redistribute_heat(plate_matrix_first, params, world);
+        }
+        world.send(0, 0, plate_matrix_first);
+    } else if (world.rank() == 2)
+    {
+        for (size_t i = 0; i < iterations; ++i)
+        {
+            plate_matrix_second = mpi_redistribute_heat(plate_matrix_second, params, world);
+        }
+        world.send(0, 0, plate_matrix_second);
     }
 
-
+    std::cout << std::endl << world.rank() << " is dying " << std::endl;
 }
 
 void sequantial_program() {
@@ -330,14 +343,14 @@ int main(int argc, char* argv[])
     boost::mpi::environment env{argc, argv};
     boost::mpi::communicator world;
     eqution_params_t params = params_init();
-    Array2D plate_matrix = file_handler("../plate.txt");
+    Array2D plate_matrix = file_handler("./table.txt");
 
 ////    if (world.rank() == 0)
 ////        sequantial_program();
 
-//    misha_function(plate_matrix, world, params);
-    f();
-    std::cout << std::endl;
+    misha_function(plate_matrix, world, params);
+
+//    f();
 }
 
 template <typename T>
