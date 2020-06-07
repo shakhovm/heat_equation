@@ -231,12 +231,17 @@ void recv_segment(const size_t rank, concur_queue<SEGMENT>& seg_queue,
                     const size_t rows, const size_t cols, std::mutex& recv_mutex)
 {
     Array2D segment_matrix(rows, cols);
+    boost::mpi::request rq;
 #ifndef NDEBUG
     std::cout << " waiting for recv rank " << rank << std::endl;
 #endif
-    recv_mutex.lock();
-    world.recv(rank, 0, segment_matrix);
-    recv_mutex.unlock();
+//    do
+//    {
+//        recv_mutex.lock();
+//        rq = world.irecv(rank, 0, segment_matrix);
+//        recv_mutex.unlock();
+//    } while (!rq.test());
+    world.recv(rank, rank, segment_matrix);
 #ifndef NDEBUG
     std::cout << "  recved rank " << rank << std::endl;
 #endif
@@ -321,14 +326,14 @@ void misha_function(Array2D& plate_matrix, boost::mpi::communicator& world,
         {
             plate_matrix_first = mpi_redistribute_heat(plate_matrix_first, params, world);
         }
-        world.send(0, 0, plate_matrix_first);
+        world.send(0, 1, plate_matrix_first);
     } else if (world.rank() == 2)
     {
         for (size_t i = 0; i < iterations; ++i)
         {
             plate_matrix_second = mpi_redistribute_heat(plate_matrix_second, params, world);
         }
-        world.send(0, 0, plate_matrix_second);
+        world.send(0, 2, plate_matrix_second);
     }
 #ifndef NDEBUG
     std::cout << std::endl << world.rank() << " is dying " << std::endl;
@@ -359,7 +364,7 @@ void sequantial_program() {
 
 int main(int argc, char* argv[])
 {
-    boost::mpi::environment env{argc, argv};
+    boost::mpi::environment env(boost::mpi::threading::level::multiple);
     boost::mpi::communicator world;
     eqution_params_t params = params_init();
     Magick::InitializeMagick("");
