@@ -11,9 +11,9 @@ link_directories(${ImageMagick_INCLUDE_DIRS})
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(SRC array2d.cpp concur_queue.cpp heat_equation.cpp src/conf_handler/confhandler.cpp)
-set(INC array2d.h concur_queue.h heat_equation.h include/conf_handler/confhandler.h)
+set(SRC src/array2d/array2d.cpp src/heat_equation/heat_equation.cpp src/conf_handler/confhandler.cpp src/heat_equation/heat_equation_functions.cpp)
+set(INC include/array2d/array2d.h include/heat_equation/heat_equation.h include/conf_handler/confhandler.h include/heat_equation/heat_equation_functions.h)
 
-add_executable(mpi_lab main2.cpp ${SRC} ${INC})
+add_executable(mpi_lab main.cpp ${SRC} ${INC})
 
 target_link_libraries(mpi_lab Boost::mpi Boost::serialization ${ImageMagick_LIBRARIES} Threads::Threads)

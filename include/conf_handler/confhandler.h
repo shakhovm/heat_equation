@@ -15,6 +15,8 @@ public:
         double temp_conduct;
         size_t time_to_save;
         size_t max_time;
+        size_t rows;
+        size_t cols;
     };
 private:
     std::string content;

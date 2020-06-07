@@ -40,4 +40,6 @@ void ConfHandler::conf_file_handler() {
     std::stringstream(file_pattern( R"(temp_conduct=[\d\.]+)")) >> conf_params.temp_conduct;
     std::stringstream(file_pattern( R"(time_to_save=[\d]+)")) >> conf_params.time_to_save;
     std::stringstream(file_pattern( R"(max_time=[\d]+)")) >> conf_params.max_time;
+    std::stringstream(file_pattern( R"(rows=[\d]+)")) >> conf_params.rows;
+    std::stringstream(file_pattern( R"(cols=[\d]+)")) >> conf_params.cols;
 }

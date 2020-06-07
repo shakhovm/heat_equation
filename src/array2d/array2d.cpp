@@ -1,4 +1,4 @@
-#include "array2d.h"
+#include "../../include/array2d/array2d.h"
 
 void Array2D::array_copy(double* to, const double *from, size_t size)  {
     for (size_t i = 0; i < size; i++) {

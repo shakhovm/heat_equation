@@ -6,13 +6,15 @@
 
 class Array2D
 {
-public:
-    double *data_;
-    typedef double* iterator;
-    size_t width;
-    size_t height;
+     double *data_;
 
-    void array_copy(double* to, const double *from, size_t size);
+     size_t width;
+     size_t height;
+     void array_copy(double* to, const double *from, size_t size);
+public:
+    typedef double* iterator;
+
+
 
     Array2D(): data_(nullptr){};
 
@@ -34,7 +36,7 @@ public:
 
     inline const double &operator()(size_t row, size_t col) const { return data_[height*col + row]; }
 
-    Array2D operator()(size_t row_first, size_t row_last, size_t col_first, size_t col_last) {
+    Array2D operator()(size_t row_first, size_t row_last, size_t col_first, size_t col_last) const {
         Array2D array(row_last - row_first, col_last - col_first);
         for (size_t i = row_first, i2 = 0; i < row_last; ++i, ++i2) {
             for (size_t j = col_first, j2 = 0; j < col_last; ++j, ++j2) {
