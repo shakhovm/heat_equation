@@ -228,11 +228,18 @@ eqution_params_t params_init() {
 
 void recv_segment(const size_t rank, concur_queue<SEGMENT>& seg_queue,
                     boost::mpi::communicator& world,
-                    const size_t rows, const size_t cols)
+                    const size_t rows, const size_t cols, std::mutex& recv_mutex)
 {
     Array2D segment_matrix(rows, cols);
+#ifndef NDEBUG
     std::cout << " waiting for recv rank " << rank << std::endl;
+#endif
+    recv_mutex.lock();
     world.recv(rank, 0, segment_matrix);
+    recv_mutex.unlock();
+#ifndef NDEBUG
+    std::cout << "  recved rank " << rank << std::endl;
+#endif
     seg_queue.push(SEGMENT(segment_matrix, rank));
 }
 
@@ -258,9 +265,10 @@ void misha_function(Array2D& plate_matrix, boost::mpi::communicator& world,
         size_t segment_rows_n = rows / (com_size - 1);
         std::vector<std::thread> recv_threads;
         concur_queue<SEGMENT> segments;
+        std::mutex recv_mutex;
         for (size_t com_rank = 1; com_rank < com_size; ++com_rank)
         {
-            recv_threads.emplace_back(recv_segment, com_rank, std::ref(segments), std::ref(world), segment_rows_n, cols);
+            recv_threads.emplace_back(recv_segment, com_rank, std::ref(segments), std::ref(world), segment_rows_n, cols, std::ref(recv_mutex));
         }
         // merge segments
         SEGMENT cur_segment;
@@ -270,7 +278,9 @@ void misha_function(Array2D& plate_matrix, boost::mpi::communicator& world,
         {
             row_offset = cur_segment.second * segment_rows_n;
             cur_segment = segments.pop();
-            std::cout << std::endl << "checkpoint; segment rank " << cur_segment.second << std::endl;
+#ifndef NDEBUG
+            std::cout << std::endl << "merging rank " << cur_segment.second << std::endl;
+#endif
             for (size_t row = 0; row < segment_rows_n; ++row)
             {
                 for (size_t col = 0; col < cols; ++col)
@@ -279,12 +289,20 @@ void misha_function(Array2D& plate_matrix, boost::mpi::communicator& world,
                 }
             }
             --segments_left;
+#ifndef NDEBUG
+            std::cout << std::endl << "merging rank " << cur_segment.second << " finished. " << segments_left << " left" << std::endl;
+#endif
         }
         for (auto& item: recv_threads)
             item.join();
-
-        Magick::InitializeMagick("");
-        Magick::Image out_img(size.c_str(), "white");
+#ifndef NDEBUG
+        std::cout << "saving image..." << std::endl;
+#endif
+//        Magick::Image out_img(size.c_str(), "white");
+        Magick::Image out_img("6x6", "white");
+#ifndef NDEBUG
+        std::cout << "image init..." << std::endl;
+#endif
         out_img.type(Magick::TrueColorType);
         for (size_t row = 0; row < rows; ++row)
         {
@@ -312,8 +330,9 @@ void misha_function(Array2D& plate_matrix, boost::mpi::communicator& world,
         }
         world.send(0, 0, plate_matrix_second);
     }
-
+#ifndef NDEBUG
     std::cout << std::endl << world.rank() << " is dying " << std::endl;
+#endif
 }
 
 void sequantial_program() {
@@ -343,11 +362,13 @@ int main(int argc, char* argv[])
     boost::mpi::environment env{argc, argv};
     boost::mpi::communicator world;
     eqution_params_t params = params_init();
+    Magick::InitializeMagick("");
     Array2D plate_matrix = file_handler("./table.txt");
 
 ////    if (world.rank() == 0)
 ////        sequantial_program();
 
+    std::cout << std::endl;
     misha_function(plate_matrix, world, params);
 
 //    f();
